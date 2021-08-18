@@ -1,0 +1,97 @@
+#!/usr/bin/env pwsh
+
+# variables
+$hostname = hostname
+$todaysdate = & date
+$path = $args[0]
+$date = Get-Date
+$pastDate = $date.AddDays(-365)
+
+# counters
+$totalObjects = 0
+$directoryCount = 0
+$filesCount = 0
+$symblnkCount = 0
+$oldCount = 0
+$largeCount = 0
+$graphicCount = 0
+$tempCount = 0
+$exeCount = 0
+$totalFileSize = 0
+
+# check if an command line argument exists, else exit
+if($args.Length -ne 1)
+{
+	Write-Output "Usage: srpt.ps1 PATH"
+	exit(1)
+}
+
+else
+{	# get the files recursively
+	$fileSysObj = @(Get-ChildItem -Recurse -Path $args[0])
+	
+	# loop through each of the objects in in the path
+	foreach ($file in $fileSysObj) 
+	{
+		# Directories
+		if (($file.GetType().Name -eq "DirectoryInfo"))
+        	{
+           		 $directoryCount++
+        	}
+		
+		# Files
+       	 	if(($file.GetType().Name -eq "FileInfo") -and ($file.mode -notmatch 'l'))
+        	{
+            		$filesCount++
+			$totalFileSize += $file.length
+        	}
+
+		# Symbolic Links
+		if(($file.GetType().Name -eq "FileInfo") -and ($file.mode -match 'l'))
+        	{
+            		$symblnkCount++
+        	}
+
+		# Old Files
+		if(($file.GetType().Name -eq "FileInfo") -and ($file.LastWriteTime -le $pastDate))
+        	{
+            		$oldCount++
+        	}
+		
+		# Large Files
+		if ( ($file.GetType().Name -eq "FileInfo") -and ($file.mode -notmatch 'l')-and ($file.Length -gt 500000))
+        	{
+            		$largeCount++
+        	}
+
+		# Graphics Files
+		if ( ($file.GetType().Name -eq "FileInfo") -and ($file.mode -notmatch '1') -and ($file.Name -match '\.jpg|\.gif|\.bmp'))
+		{
+			$graphicCount++
+		}
+		# Temporary Files
+		if( ($file.GetType().Name -eq "FileInfo") -and ($file.mode -notmatch 'l') -and ($file.name -match '\.o') )
+		{
+			$tempCount++
+		}
+
+		# Executable Files
+		if ( ($file.GetType().Name -eq "FileInfo") -and ($file.name -match '\.ex%') )
+		{
+			$exeCount++
+		}
+	}
+		
+
+}
+
+Write-Output "SearchReport $hostname $path $todaysdate" 
+Write-Output "Directories $($directoryCount.ToString("N0"))"
+Write-Output "Files $($filesCount.ToString("N0"))"
+Write-Output "Sym links $($symblnkCount.ToString("N0"))"
+Write-Output "Old files $($oldCount.ToString("N0"))"
+Write-Output "Large files $($largeCount.ToString("N0"))"
+Write-Output "Graphics files $($graphicCount.ToString("N0"))"
+Write-Output "Temporary files $($tempCount.ToString("N0"))"
+Write-Output "Executable files $($exeCount.ToString("N0"))"
+Write-Output "TotalFileSize $($totalFileSize.ToString("N0"))"
