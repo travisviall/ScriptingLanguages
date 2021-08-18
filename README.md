@@ -1,3 +1,3 @@
-#Scripting_Languages_CS3030
+#ScriptingLanguages
 <br>
 The study of scripting languages BASH, Python and PowerShell
