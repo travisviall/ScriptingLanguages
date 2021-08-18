@@ -1,0 +1,99 @@
+  
+#!/usr/bin/python3
+
+# cmd file/var/classes/cs3030/lab6/lab6cmds2
+
+import sys
+import shlex
+import random
+
+# if the command line does not have exactly 4 args, exit
+if len(sys.argv) !=4:
+	print("Usage:filemaker INPUTCOMMANDFILE OUTPUTFILE RECORDCOUNT")
+	exit(1)
+
+# parse the record count value to an int
+try:
+	recordCount = int(sys.argv[3])
+except:
+	print("Error: value must be numeric")
+	exit(1)
+
+# exist program if RECORDCOUNT is not positive
+if(recordCount < 1):
+	print("Error: value must be positive")
+	exit(1)
+
+try:
+	# reads the command line arg for the INPUTCOMMANDFILE
+	commandFile = open(sys.argv[1],"r")
+	outputFile = open(sys.argv[2], "w")
+except:
+	print("Error: file cannot be read")
+	exit(1)
+
+# read all commands into a commands list using shlex
+commands = []
+readCommand = commandFile.readlines()
+
+# instantiate a dictionary
+randomFiles = {}
+randomData = {}
+
+# read the commandfile
+for c in readCommand:
+
+	# shlex each line, removing extra escape char
+	s = shlex.split(c.encode("utf-8").decode("unicode_escape"), True)
+
+	# disregard the empty comment field
+	if len(s) == 0:
+		continue
+
+	# write the header to the output file
+	if "HEADER" in s:
+		outputFile.write(s[1])
+		continue
+
+	if "FILEWORD" in s:
+
+		# store file as an array into dictionary randomFiles with key: filename, value: entire file
+		try:
+			inputFile = open(s[2],"r")
+		except:
+			print("Error: File cannot be read.")
+			exit(1)
+		
+		randomFiles[s[2]] = inputFile.readlines()
+		inputFile.close()
+		
+	commands.append(s)
+
+# loop through using recordCount
+while recordCount > 0:
+
+	for c in commands:
+		if "STRING" in c:
+			outputFile.write(c[1])	
+		if "FILEWORD" in c:
+			name = randomFiles.get(c[2])
+			length = len(randomFiles[c[2]]) -1
+
+			key = c[1]
+			value = name[random.randint(0,length)].rstrip()
+			randomData.update({key:value})
+			outputFile.write(randomData[c[1]])
+
+		if "NUMBER" in c:
+			key = c[1]
+			value = random.randint(int(c[2]), int(c[3]))
+			randomData.update({key:value})
+			outputFile.write(str(randomData[c[1]]))
+						
+		if "REFER" in c:
+			outputFile.write(str(randomData[c[1]]))
+
+	recordCount -= 1
+
+outputFile.close()
+exit(0)
