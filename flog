@@ -1,0 +1,44 @@
+#!/bin/bash
+# Travis Viall
+# Lab 3 - Failed Log Report
+# CS 3030 - Scripting Languages
+
+date=$(date)
+
+# check for command line argument, exit with code 1 
+# if no argument found
+if [ $# -ne 1 ]; then
+	echo "Usage: flog PATH"
+	exit 1
+fi
+# search the provided path for the given string,
+# send it to a new file
+grep 'Failed password for ' $1 > log_1
+# search for the username in the file
+sed -n 's/.*Failed password for \([a-z0-9A-Z_]*\) .*/\1/p' log_1 > log_2
+rm log_1
+# sort the file ascending
+sort < log_2 > log_3
+rm log_2
+# count the number of occurrences in the file
+uniq -c < log_3 > log_4
+rm log_3
+# sort the file by number, then by alpha
+sort -k1,1nr -k2,2 log_4 > log_5
+rm log_4
+# replace the word 'invalid' with the HTML format of '<UNKNOWN>'
+sed 's/invalid/\&lt;UNKNOWN\&gt;/' < log_5 > log_6
+rm log_5
+# send the HTML formatted information to a new file
+printf "<html>\n" >> log_7
+printf "<body><h1>Failed Login Attempts Report as of %s</h1>\n" "$date" >> log_7
+cat log_6 | while read mycount myuserid; do
+	printf "%s\t %'d %s\n" "<br />" "$mycount" "$myuserid" >> log_7
+	done
+
+printf "</body> </html>" >> log_7
+# output the HTML data to STDOUT
+cat log_7
+rm log_6
+rm log_7
+exit 0
