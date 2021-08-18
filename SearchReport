@@ -1,7 +1,4 @@
 #!/bin/bash
-# Travis Viall
-# Lab 2 - Search and Report
-# CS 3030 - Scripting Languages
 
 if [ $# -ne 1 ]; then
     echo "Usage: srpt PATH"
