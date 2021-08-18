@@ -1,0 +1,74 @@
+#!/usr/bin/python3
+# Travis Viall
+# Lab 5 - Database Loader
+# CS 3030 - Scripting Languages
+
+import sys
+import csv
+import sqlite3
+
+# if the command line does not have exactly 2 args, exit
+if len(sys.argv) != 3:
+	print("Usage: dbload CSVFILE DATABASEFILE")
+	exit(1)
+
+# if the sqlite database cannot be read, exit
+try:
+	
+	sqlDB = sys.argv[2]
+	conn = sqlite3.connect(sqlDB)
+except:
+	print("Error: Database cannot be read.")
+	exit(1)
+
+# if the csv file cannot be read, exit
+try:
+	csvFile = sys.argv[1]
+	reader = csv.reader(open(csvFile, 'r'), delimiter=',', quotechar='"')
+except:
+	print("Error: CSV file cannot be read")
+	exit(1)	
+
+curs = conn.cursor()
+
+# drop and create the classes table if it doesn't exist
+curs.execute('''drop table if exists classes''')
+curs.execute('''create table classes
+	(id text, subjcode text, coursenumber text, termcode text) ''')
+
+# drop and create the students table if it doesn't exist
+curs.execute('''drop table if exists students''')
+curs.execute('''create table students
+	(id text primary key unique, lastname text, firstname text,
+	email text, major text, city text, state text, zip text)''')
+conn.commit()
+
+counter = 0
+# row - id, firstname, lastname, email, major, course, termcode, city, state, zip
+
+# read each row in the csv file
+for row in reader:
+	counter += 1
+	if counter == 1:
+		continue
+	# use a list to identify columns from the csv file for the student
+	student = (row[0], row[1], row[2], row[3], row[4], row[7], row[8], row[9])
+
+	# split the course column into the subject and course number
+	s = row[5].split(" ")
+	subjcode = s[0]
+	coursenumber = s[1]
+
+	course = (row[0], subjcode, coursenumber, row[6])
+
+	# insert the courses into the courses table
+	curs.execute('''insert into classes (id, subjcode, coursenumber, termcode)
+		values (?,?,?,?) ''', course)
+	
+	# attempt to retrieve student by W#. If false, insert into students table
+	curs.execute("select * from students where id = '{0}'".format(student[0]))
+	if not curs.fetchone():
+		curs.execute('''insert into students (id, firstname, lastname, email,
+			major, city, state, zip) values(?,?,?,?,?,?,?,?)''', student)
+conn.commit()	
+exit(0)
