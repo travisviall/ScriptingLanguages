@@ -1,7 +1,4 @@
 #!/bin/bash
-# Travis Viall
-# Lab 3 - Failed Log Report
-# CS 3030 - Scripting Languages
 
 date=$(date)
 
