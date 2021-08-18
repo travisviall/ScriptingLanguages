@@ -1,0 +1,93 @@
+#!/usr/bin/env pwsh
+
+# check for correct command line arguments
+if ($args.Count -ne 2) {
+
+    Write-Host "Usage: dbload CSVFILE DATABASEFILE"
+    exit 1
+}
+
+# csv headers: wnumber, firstname, lastname, email, major, course, termcode, city, state, zip
+
+# save csv
+try {
+
+    $csv = Import-csv $args[0] -delimiter ","
+
+}
+catch {
+
+    Write-Output "Error opening CSV file: $_"
+    exit 1
+}
+
+# open the dababase (command line arg[1])
+try {
+    Add-Type -Path "./dlls/System.Data.SQLite.dll"
+    $global:con = New-Object -TypeName System.Data.SQLite.SQLiteConnection
+    $con.ConnectionString = "Data Source=$($args[1])"
+    $con.Open()
+
+}
+catch {
+    Write-Output "Error opening database file: $_"
+    exit 1
+}
+
+# drop/create the SQL tables
+$transaction = $con.BeginTransaction("create")
+$sql = $con.CreateCommand()
+$sql.CommandText = 'DROP table if exists students'
+[void]$sql.ExecuteNonQuery()
+
+$sql = $con.CreateCommand()
+$sql.CommandText = 'DROP table if exists classes'
+[void]$sql.ExecuteNonQuery()
+
+$sql.CommandText = 'CREATE table classes
+    (id text, subjcode text, coursenumber text, termcode text);'
+[void]$sql.ExecuteNonQuery()
+
+$sql = $con.CreateCommand()
+$sql.CommandText = 'CREATE table students (id text primary key unique,
+     lastname text, firstname text, major text, email text,
+     city text, state text, zip text);'
+[void]$sql.ExecuteNonQuery()
+
+[void]$transaction.Commit()
+
+# insert records from CSV file into students table
+foreach ($row in $csv) {
+    $transaction = $global:con.BeginTransaction("addstudenttransaction")
+    $sql.CommandText = "INSERT or REPLACE into students
+    (id, firstname, lastname, email, major, city, state, zip) VALUES
+    (@id, @firstname, @lastname, @email, @major, @city, @state, @zip);"
+
+    [void]$sql.Parameters.AddWithValue("@id", $row.wnumber)
+    [void]$sql.Parameters.AddWithValue("@firstname", $row.firstname)
+    [void]$sql.Parameters.AddWithValue("@lastname", $row.lastname)
+    [void]$sql.Parameters.AddWithValue("@email", $row.email)
+    [void]$sql.Parameters.AddWithValue("@major", $row.major)
+    [void]$sql.Parameters.AddWithValue("@city", $row.city)
+    [void]$sql.Parameters.AddWithValue("@state", $row.state)
+    [void]$sql.Parameters.AddWithValue("@zip", $row.zip)
+
+    [void]$sql.ExecuteNonQuery()
+    [void]$transaction.Commit()
+
+    $transaction = $global:con.BeginTransaction("addcourse")
+    $sql.CommandText = "INSERT into classes (id, subjcode, coursenumber, termcode ) VALUES (@id, @subjcode, @coursenumber, @termcode);"
+
+    $s = $row.course.split(" ")
+
+    [void]$sql.Parameters.AddWithValue("@id", $row.wnumber)
+    [void]$sql.Parameters.AddWithValue("@subjcode", $s[0])
+    [void]$sql.Parameters.AddWithValue("@coursenumber", $s[1])
+    [void]$sql.Parameters.AddWithValue("@termcode", $row.termcode)
+
+
+    [void]$sql.ExecuteNonQuery()
+    [void]$transaction.Commit()
+}
+
+exit 0
