@@ -1,0 +1,55 @@
+#!/bin/bash
+# Travis Viall
+# Lab 2 - Search and Report
+# CS 3030 - Scripting Languages
+
+if [ $# -ne 1 ]; then
+    echo "Usage: srpt PATH"
+    exit 1
+fi
+# variable to track start time of script 
+start=$SECONDS
+# create a temporary directory and add files 
+mkdir /tmp/$USER
+# variable to hold current date/timestamp
+date=$(date)
+
+# find command to locate each file type and directory counts
+find $1 \( -type d -fprintf /tmp/$USER/dircnt "\n" \) , \( -type f -fprintf /tmp/$USER/filecnt "%s\n" \) , \( -type l -fprintf /tmp/$USER/symlnkcnt "\n" \) , \( -type f -mtime +364 -fprintf /tmp/$USER/oldcnt "\n" \) , \( -type f -size +500k -fprintf /tmp/$USER/lrgcnt "\n" \) , \( -type f \( -name "*.gif" -o -name "*.jpg" -o -name "*.bmp" \) -fprintf /tmp/$USER/grphcnt "\n" \) , \( -type f -iname \*.o -fprintf /tmp/$USER/tmpcnt "\n" \) , \( -type f -perm -500 -fprintf /tmp/$USER/execnt "\n" \) 
+# use sleep to test totalTime
+#sleep 3
+
+# variables to hold the count of each file type and directory counts
+directoryCount=$(wc -l /tmp/$USER/dircnt | cut -d' ' -f 1)
+((directoryCount--))
+fileCnt=$(wc -l /tmp/$USER/filecnt | cut -d' ' -f 1)
+exeCnt=$(wc -l /tmp/$USER/execnt | cut -d' ' -f 1)
+grphCnt=$(wc -l /tmp/$USER/grphcnt | cut -d' ' -f 1)
+lrgCnt=$(wc -l /tmp/$USER/lrgcnt | cut -d' ' -f 1)
+syLnkCnt=$(wc -l /tmp/$USER/symlnkcnt | cut -d' ' -f 1)
+oldCnt=$(wc -l /tmp/$USER/oldcnt | cut -d' ' -f 1)
+tmpCnt=$(wc -l /tmp/$USER/tmpcnt | cut -d' ' -f 1)
+totalSize=$(awk '{tot=tot+$1} END {print tot}' /tmp/$USER/filecnt)
+
+# variable to track end time of script
+end=$SECONDS
+
+# variable to hold the total time script runs
+totalTime=$(($end - $start))
+
+printf "SearchReport %s\n" "$HOSTNAME $1 $date"
+printf "Execution time %'d\n" $totalTime
+printf "Directories %'d\n" $directoryCount
+printf "Files %'d\n" $fileCnt
+printf "Sym links %'d\n" $syLnkCnt
+printf "Old files %'d\n" $oldCnt
+printf "Large files %'d\n" $lrgCnt
+printf "Graphics files %'d\n" $grphCnt
+printf "Temporary files %'d\n" $tmpCnt
+printf "Executable files %'d\n" $exeCnt
+printf "TotalFileSize %'d\n" $totalSize
+
+# remove temp file once script completes
+rm -r /tmp/$USER
+
+exit 0
