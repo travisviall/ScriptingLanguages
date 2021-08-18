@@ -1,0 +1,136 @@
+#!/usr/bin/env pwsh
+
+# dictionary that holds the firstname and surname values
+$randomFiles = @{}
+
+# holds random firstname, surname and number
+$randomData = @{}
+
+# check if there are exactly three command line arguments
+if ( $args.Count -ne 3) {
+    Write-Host "Usage: filemaker INPUTCOMMANDFILE OUTPUTFILE RECORDCOUNT"
+    exit 1
+}
+
+try {
+    # convert the RECORDCOUNT arg to an integer
+    $stringInput = $args[2]
+    $recordCount = [int]$stringInput
+
+    # make sure the RECORDCOUNT arg is greater than 0
+    if ($recordCount -lt 1) {
+        Write-Host "Error: RECORDCOUNT must be greater than 0"
+	exit 1
+    }
+
+}
+catch {
+
+    Write-Host "Error: RECORDCOUNT must be numeric"
+    exit 1
+}
+
+# reading the commands files
+try {
+
+    $inputCommands = Get-Content -path $args[0] -erroraction stop
+
+}
+catch {
+
+    Write-Output "Error: opening or reading Command File: $($_)"
+    exit 1
+}
+
+# creating a new file
+try {
+
+    $outputFile = $args[1]
+    New-Item -path $outputFile -erroraction stop | out-null
+}
+catch {
+    Write-Output "Error: opening output file: $($_)"
+    exit 1
+}
+
+function Write-To-File($outputFile, $outputString)
+  {
+    $outputString = $outputString -replace [regex]::escape("\t"), "`t"
+    $outputString = $outputString -replace [regex]::escape("\n"), "`n"
+
+    try {
+
+        Add-Content -Path $outputFile -value $outputString -nonewline
+
+    }catch {
+
+        Write-Output "Error: Write failed to file $($outputFile): $_"
+        exit 1
+
+    }
+}
+
+
+
+foreach($command in $inputCommands)
+{
+
+
+    if ($command -match '^HEADER\s+"(.*)"$') {
+        Write-To-File $outputFile $matches.1
+    }
+
+    if ($command -match '^STRING\s+"(.*)"$' -or $command -match "^STRING\s+'(.*)'$" ) {
+        $stringValue = $matches.1
+        #Write-To-File $outputFile $stringValue
+    }
+
+    if ($command -match '^FILEWORD\s+(.*)\s+"(.*)"$') {
+        $filewordLabel = $matches.1 # is either firstname or lastname
+        $filewordFilename = $matches.2 # is either firstnames.txt or surnames.txt
+
+        try {
+            $randomFiles[$filewordFilename] = Get-Content -Path $filewordFilename
+        } catch {
+                Write-Output "Error: cannot read file"
+		exit 1
+        }
+    }
+}
+
+
+while($recordCount -gt 0)
+{
+    foreach($c in $inputCommands)
+    {
+        if ($c -match '^STRING\s+"(.*)"$' -or $c -match "^STRING\s+'(.*)'$" ) {
+            $stringValue = $matches.1
+            Write-To-File $outputFile $stringValue
+        }
+
+        if ($c -match '^FILEWORD\s+(.*)\s+"(.*)"$') {
+                $filewordLabel = $matches.1
+                $randomWord = Get-Random -InputObject $randomFiles[$matches.2]
+                $randomData[$filewordLabel] = $randomWord
+                Write-To-File $outputFile $randomWord
+        }
+
+        if ($c -match '^NUMBER\s+(\w+)\s+(\d+)\s+(\d+)$') {
+            $numberLabel = $matches.1
+            $numberMin = $($matches.2).toInt32($null)
+            $numberMax = $($matches.3).toInt32($null)
+
+            $randomData[$numberLabel] = Get-Random -min $numberMin -max $numberMax
+            Write-To-File $outputFile $randomData[$numberLabel]
+        }
+
+        if ($c -match '^REFER\s+(\w+)$' ) {
+            $referLabel = $matches.1
+            Write-To-File $outputFile $randomData[$referLabel]
+        }
+    }
+
+
+    $recordCount--
+}
+exit 0
